@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Monitor, Radar } from 'lucide-react';
+import { Monitor, Radar, Wifi, WifiOff } from 'lucide-react';
 import type { DeviceType, DeviceStatus } from '@netcheckup/shared';
 import { useDevices } from '../hooks/useDevices';
 import { useTriggerDiscovery } from '../hooks/useScans';
@@ -47,9 +47,23 @@ export default function DevicesPage() {
       {/* Device list */}
       <div className={`flex-1 space-y-4 ${selectedDevice ? 'hidden lg:block' : ''}`}>
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">
-            {filtered.length} dispositivo{filtered.length !== 1 ? 's' : ''}
-          </h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-semibold">
+              {filtered.length} dispositivo{filtered.length !== 1 ? 's' : ''}
+            </h2>
+            <div className="flex items-center gap-3 text-xs text-gray-400">
+              <span className="flex items-center gap-1">
+                <Wifi className="w-3 h-3 text-emerald-400" />
+                <span className="text-emerald-400 font-medium">{filtered.filter(d => d.status === 'online').length}</span>
+                en línea
+              </span>
+              <span className="flex items-center gap-1">
+                <WifiOff className="w-3 h-3 text-gray-500" />
+                <span className="text-gray-500 font-medium">{filtered.filter(d => d.status !== 'online').length}</span>
+                sin conexión
+              </span>
+            </div>
+          </div>
           <Button
             variant="secondary"
             size="sm"

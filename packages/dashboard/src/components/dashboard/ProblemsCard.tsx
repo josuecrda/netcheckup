@@ -1,13 +1,16 @@
-import { AlertTriangle, AlertCircle, Info, CheckCircle } from 'lucide-react';
+import { useState } from 'react';
+import { AlertTriangle, AlertCircle, Info, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import Card from '../common/Card';
 import { useProblems, useResolveProblem } from '../../hooks/useHealth';
 import type { Problem, ProblemSeverity } from '@netcheckup/shared';
 
 const severityConfig: Record<ProblemSeverity, { icon: typeof AlertTriangle; color: string; bgColor: string; label: string }> = {
-  critical: { icon: AlertTriangle, color: 'text-red-400', bgColor: 'bg-red-400/10', label: 'Cr\u00edtico' },
+  critical: { icon: AlertTriangle, color: 'text-red-400', bgColor: 'bg-red-400/10', label: 'Crítico' },
   warning: { icon: AlertCircle, color: 'text-amber-400', bgColor: 'bg-amber-400/10', label: 'Advertencia' },
   info: { icon: Info, color: 'text-blue-400', bgColor: 'bg-blue-400/10', label: 'Info' },
 };
+
+const VISIBLE_COUNT = 2;
 
 function ProblemItem({ problem }: { problem: Problem }) {
   const resolve = useResolveProblem();
@@ -29,7 +32,7 @@ function ProblemItem({ problem }: { problem: Problem }) {
 
           {/* Recommendation */}
           <div className="mt-2 p-2 bg-white/5 rounded-lg">
-            <p className="text-xs text-gray-300 font-medium mb-1">Recomendaci\u00f3n:</p>
+            <p className="text-xs text-gray-300 font-medium mb-1">Recomendación:</p>
             <p className="text-xs text-gray-400 whitespace-pre-line line-clamp-3">{problem.recommendation}</p>
           </div>
 
@@ -53,6 +56,7 @@ function ProblemItem({ problem }: { problem: Problem }) {
 
 export default function ProblemsCard() {
   const { data: problems, isLoading } = useProblems();
+  const [expanded, setExpanded] = useState(false);
 
   if (isLoading) {
     return (
@@ -71,7 +75,7 @@ export default function ProblemsCard() {
           <CheckCircle className="w-6 h-6" />
           <div>
             <p className="text-sm font-medium">Sin problemas detectados</p>
-            <p className="text-xs text-gray-500">Tu red est\u00e1 funcionando correctamente</p>
+            <p className="text-xs text-gray-500">Tu red está funcionando correctamente</p>
           </div>
         </div>
       </Card>
@@ -84,6 +88,12 @@ export default function ProblemsCard() {
     return order[a.severity] - order[b.severity];
   });
 
+  const criticalCount = activeProblems.filter(p => p.severity === 'critical').length;
+  const warningCount = activeProblems.filter(p => p.severity === 'warning').length;
+  const hasMore = sorted.length > VISIBLE_COUNT;
+  const visibleProblems = expanded ? sorted : sorted.slice(0, VISIBLE_COUNT);
+  const hiddenCount = sorted.length - VISIBLE_COUNT;
+
   return (
     <Card>
       <div className="flex items-center justify-between mb-4">
@@ -91,19 +101,43 @@ export default function ProblemsCard() {
           Problemas detectados ({activeProblems.length})
         </p>
         <div className="flex gap-2 text-xs">
-          {activeProblems.filter(p => p.severity === 'critical').length > 0 && (
-            <span className="text-red-400">{activeProblems.filter(p => p.severity === 'critical').length} cr\u00edticos</span>
+          {criticalCount > 0 && (
+            <span className="text-red-400">
+              {criticalCount} {criticalCount === 1 ? 'crítico' : 'críticos'}
+            </span>
           )}
-          {activeProblems.filter(p => p.severity === 'warning').length > 0 && (
-            <span className="text-amber-400">{activeProblems.filter(p => p.severity === 'warning').length} advertencias</span>
+          {warningCount > 0 && (
+            <span className="text-amber-400">
+              {warningCount} {warningCount === 1 ? 'advertencia' : 'advertencias'}
+            </span>
           )}
         </div>
       </div>
       <div className="space-y-3">
-        {sorted.map((problem) => (
+        {visibleProblems.map((problem) => (
           <ProblemItem key={problem.id} problem={problem} />
         ))}
       </div>
+
+      {/* Ver más / Ver menos */}
+      {hasMore && (
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="w-full mt-4 flex items-center justify-center gap-1.5 text-xs text-gray-400 hover:text-gray-200 py-2 rounded-lg hover:bg-white/5 transition-colors"
+        >
+          {expanded ? (
+            <>
+              <ChevronUp className="w-3.5 h-3.5" />
+              Ver menos
+            </>
+          ) : (
+            <>
+              <ChevronDown className="w-3.5 h-3.5" />
+              Ver {hiddenCount} {hiddenCount === 1 ? 'problema' : 'problemas'} más
+            </>
+          )}
+        </button>
+      )}
     </Card>
   );
 }

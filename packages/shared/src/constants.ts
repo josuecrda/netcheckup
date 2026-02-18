@@ -54,3 +54,51 @@ export const DEFAULT_INTERVALS = {
   pingSeconds: 60,
   speedTestMinutes: 360,
 } as const;
+
+// ─── Tiers del modelo freemium ─────────────────────────────
+import type { LicenseTier, TierLimits } from './types.js';
+
+export const TIER_LIMITS: Record<LicenseTier, TierLimits> = {
+  free: {
+    scansPerDay: 1,
+    dataRetentionHours: 24,
+    alertsEnabled: true,
+    emailAlerts: false,
+    telegramAlerts: false,
+    pdfReports: false,
+    snmpEnabled: false,
+    maxDevices: -1,
+  },
+  monitoring: {
+    scansPerDay: -1,
+    dataRetentionHours: -1,
+    alertsEnabled: true,
+    emailAlerts: true,
+    telegramAlerts: true,
+    pdfReports: true,
+    snmpEnabled: false,
+    maxDevices: -1,
+  },
+  consulting: {
+    scansPerDay: -1,
+    dataRetentionHours: -1,
+    alertsEnabled: true,
+    emailAlerts: true,
+    telegramAlerts: true,
+    pdfReports: true,
+    snmpEnabled: true,
+    maxDevices: -1,
+  },
+} as const;
+
+export const TIER_LABELS: Record<LicenseTier, string> = {
+  free: 'Gratis',
+  monitoring: 'Monitoreo',
+  consulting: 'Consultoría',
+};
+
+export const TIER_PRICES: Record<LicenseTier, { amount: number; currency: string; label: string }> = {
+  free: { amount: 0, currency: 'MXN', label: 'Gratis' },
+  monitoring: { amount: 299, currency: 'MXN', label: '$299 MXN/mes' },
+  consulting: { amount: 799, currency: 'MXN', label: '$799 MXN/mes' },
+};

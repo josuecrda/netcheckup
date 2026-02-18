@@ -3,6 +3,7 @@ import { Save, Server, Wifi, Clock, Bell } from 'lucide-react';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import Spinner from '../components/common/Spinner';
+import PlanCard from '../components/settings/PlanCard';
 import { useSettings, useAgentStatus, useUpdateSettings } from '../hooks/useSettings';
 import type { AppSettings } from '@netcheckup/shared';
 
@@ -147,6 +148,9 @@ export default function SettingsPage() {
         </Button>
         {saved && <span className="text-sm text-emerald-400">Guardado correctamente</span>}
       </div>
+
+      {/* Plan / Licencia */}
+      <PlanCard />
     </div>
   );
 }

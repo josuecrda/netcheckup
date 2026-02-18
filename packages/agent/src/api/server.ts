@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { logger } from '../utils/logger.js';
@@ -14,6 +15,7 @@ import { alertsRouter } from './routes/alerts.routes.js';
 import { healthRouter } from './routes/health.routes.js';
 import { settingsRouter } from './routes/settings.routes.js';
 import { toolsRouter } from './routes/tools.routes.js';
+import { licenseRouter } from './routes/license.routes.js';
 import { errorHandler } from './middleware/error-handler.js';
 
 export function createApp() {
@@ -38,9 +40,14 @@ export function createApp() {
   app.use('/api/health', healthRouter);
   app.use('/api/settings', settingsRouter);
   app.use('/api/tools', toolsRouter);
+  app.use('/api/license', licenseRouter);
 
   // Servir dashboard (archivos estáticos de Vite build)
-  const dashboardPath = path.resolve(__dirname, '..', '..', '..', 'dashboard', 'dist');
+  // Buscar en múltiples ubicaciones: bundle flat (dist/dashboard) o monorepo dev
+  let dashboardPath = path.resolve(__dirname, 'dashboard');
+  if (!fs.existsSync(dashboardPath)) {
+    dashboardPath = path.resolve(__dirname, '..', '..', '..', 'dashboard', 'dist');
+  }
   app.use(express.static(dashboardPath));
 
   // SPA fallback: cualquier ruta no-API sirve el index.html del dashboard

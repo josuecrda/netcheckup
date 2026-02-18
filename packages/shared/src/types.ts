@@ -212,6 +212,7 @@ export interface AppSettings {
   monthlyReportEnabled: boolean;
   licenseKey: string | null;
   tier: 'free' | 'monitoring' | 'consulting';
+  onboardingCompleted: boolean;
 }
 
 // ============================================================
@@ -296,6 +297,35 @@ export interface PortScanResult {
   }[];
   scanDuration: number;
 }
+
+// ============================================================
+// LICENSE / FREEMIUM
+// ============================================================
+
+export type LicenseTier = 'free' | 'monitoring' | 'consulting';
+
+export interface LicenseInfo {
+  tier: LicenseTier;
+  licenseKey: string | null;
+  activatedAt: string | null;
+  expiresAt: string | null;
+  isValid: boolean;
+}
+
+export interface TierLimits {
+  scansPerDay: number;          // -1 = ilimitado
+  dataRetentionHours: number;
+  alertsEnabled: boolean;
+  emailAlerts: boolean;
+  telegramAlerts: boolean;
+  pdfReports: boolean;
+  snmpEnabled: boolean;
+  maxDevices: number;           // -1 = ilimitado
+}
+
+// ============================================================
+// NETWORK TOOLS (continued)
+// ============================================================
 
 export interface SubnetCalcResult {
   ip: string;

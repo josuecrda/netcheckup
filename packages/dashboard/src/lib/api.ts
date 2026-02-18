@@ -130,6 +130,27 @@ export const toolsApi = {
     post<SubnetCalcResult>('/tools/subnet-calc', { ip, mask }),
 };
 
+// ─── License ───────────────────────────────────────────────
+import type { LicenseInfo, TierLimits, LicenseTier } from '@netcheckup/shared';
+
+interface LicenseResponse extends LicenseInfo {
+  limits: TierLimits;
+}
+
+interface TierInfo {
+  id: LicenseTier;
+  name: string;
+  price: { amount: number; currency: string; label: string };
+  limits: TierLimits;
+}
+
+export const licenseApi = {
+  get: () => get<LicenseResponse>('/license'),
+  activate: (licenseKey: string) => post<LicenseResponse>('/license/activate', { licenseKey }),
+  deactivate: () => post<LicenseResponse>('/license/deactivate'),
+  tiers: () => get<TierInfo[]>('/license/tiers'),
+};
+
 // ─── Settings ───────────────────────────────────────────────
 import type { AppSettings } from '@netcheckup/shared';
 

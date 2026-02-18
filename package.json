@@ -6,15 +6,19 @@
   "workspaces": [
     "packages/shared",
     "packages/agent",
-    "packages/dashboard"
+    "packages/dashboard",
+    "packages/landing"
   ],
   "scripts": {
     "dev": "npm run dev --workspace=packages/agent",
     "dev:dashboard": "npm run dev --workspace=packages/dashboard",
+    "dev:landing": "npm run dev --workspace=packages/landing",
     "build": "npm run build --workspace=packages/shared && npm run build --workspace=packages/dashboard && npm run build --workspace=packages/agent",
     "build:agent": "npm run build --workspace=packages/agent",
     "build:dashboard": "npm run build --workspace=packages/dashboard",
     "build:shared": "npm run build --workspace=packages/shared",
+    "dist": "node scripts/build.mjs",
+    "dist:package": "node scripts/build.mjs && node scripts/package.mjs",
     "lint": "eslint packages/*/src/**/*.{ts,tsx}",
     "format": "prettier --write packages/*/src/**/*.{ts,tsx}"
   },
@@ -22,5 +26,8 @@
     "node": ">=20.0.0"
   },
   "author": "Josue (Optima Energia)",
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "esbuild": "^0.27.3"
+  }
 }

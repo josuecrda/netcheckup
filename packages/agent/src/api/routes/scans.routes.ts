@@ -3,6 +3,7 @@ import { scanRepo } from '../../db/repositories/scan.repo.js';
 import { runDiscovery } from '../../scanners/network-discovery.js';
 import { pingAllDevices } from '../../scanners/ping-monitor.js';
 import { broadcastEvent } from '../websocket.js';
+import { canRunDiscoveryScan } from '../../license.js';
 
 export const scansRouter = Router();
 
@@ -31,6 +32,12 @@ scansRouter.get('/:id', (req, res) => {
 
 // POST /api/scans/discovery — Trigger escaneo de descubrimiento
 scansRouter.post('/discovery', async (_req, res) => {
+  const check = canRunDiscoveryScan();
+  if (!check.allowed) {
+    res.status(429).json({ success: false, error: check.reason, timestamp: new Date().toISOString() });
+    return;
+  }
+
   res.json({ success: true, data: { message: 'Escaneo iniciado' }, timestamp: new Date().toISOString() });
 
   // Ejecutar en background

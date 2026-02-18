@@ -47,11 +47,18 @@ function getArpTable(): ArpEntry[] {
       });
       const lines = output.split('\n');
       for (const line of lines) {
+        // macOS puede mostrar MACs con 1 o 2 dígitos por octeto (ej: 0:26:73 en vez de 00:26:73)
         const match = line.match(
-          /\(([\d.]+)\)\s+at\s+([0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2})/
+          /\(([\d.]+)\)\s+at\s+([0-9a-fA-F]{1,2}:[0-9a-fA-F]{1,2}:[0-9a-fA-F]{1,2}:[0-9a-fA-F]{1,2}:[0-9a-fA-F]{1,2}:[0-9a-fA-F]{1,2})/
         );
         if (match) {
-          entries.push({ ip: match[1], mac: match[2].toLowerCase() });
+          // Normalizar MAC a formato 00:xx:xx (2 dígitos por octeto)
+          const normalizedMac = match[2]
+            .toLowerCase()
+            .split(':')
+            .map((o) => o.padStart(2, '0'))
+            .join(':');
+          entries.push({ ip: match[1], mac: normalizedMac });
         }
       }
     }
@@ -72,28 +79,52 @@ async function populateArpTable(subnet: string): Promise<void> {
 
   try {
     if (process.platform === 'win32') {
-      // Ping en lotes asíncronos de 30 IPs
+      // Ping en lotes asíncronos de 30 IPs, timeout 1s por ping
       const batchSize = 30;
       for (let i = 0; i < ips.length; i += batchSize) {
         const batch = ips.slice(i, i + batchSize);
-        const cmds = batch.map((ip) => `ping -n 1 -w 300 ${ip}`).join(' & ');
+        const cmds = batch.map((ip) => `ping -n 1 -w 1000 ${ip}`).join(' & ');
         try {
-          await execAsync(cmds, { timeout: 20000 });
+          await execAsync(cmds, { timeout: 30000 });
         } catch {
           // Timeouts esperados para IPs sin respuesta
         }
       }
     } else {
       try {
-        await execAsync(`fping -a -q -r 1 -g ${subnet}.0/24 2>/dev/null`, { timeout: 30000 });
+        // fping con 2 retries y 1000ms timeout para atrapar dispositivos lentos
+        await execAsync(`fping -a -q -r 2 -t 1000 -g ${subnet}.0/24 2>/dev/null`, { timeout: 45000 });
       } catch {
-        // Fallback: ping en lotes
-        const batch = ips.slice(0, 50);
-        const promises = batch.map((ip) =>
-          execAsync(`ping -c 1 -W 1 ${ip} 2>/dev/null`, { timeout: 3000 }).catch(() => {})
-        );
-        await Promise.all(promises);
+        // Fallback: ping TODAS las 254 IPs en lotes de 50, timeout 2s cada una
+        logger.info('fping no disponible, usando ping fallback para las 254 IPs');
+        const batchSize = 50;
+        for (let i = 0; i < ips.length; i += batchSize) {
+          const batch = ips.slice(i, i + batchSize);
+          const promises = batch.map((ip) =>
+            execAsync(`ping -c 1 -W 2 ${ip} 2>/dev/null`, { timeout: 5000 }).catch(() => {})
+          );
+          await Promise.all(promises);
+        }
       }
+    }
+
+    // Segunda ronda rápida para dispositivos que despertaron con la primera
+    logger.debug('Segunda ronda de ping sweep para dispositivos lentos');
+    try {
+      if (process.platform === 'win32') {
+        const cmds = ips.map((ip) => `ping -n 1 -w 500 ${ip}`).join(' & ');
+        await execAsync(cmds, { timeout: 30000 }).catch(() => {});
+      } else {
+        await execAsync(`fping -a -q -r 0 -t 500 -g ${subnet}.0/24 2>/dev/null`, { timeout: 20000 }).catch(() => {
+          // Fallback segunda ronda — solo los que no respondieron
+          const promises = ips.map((ip) =>
+            execAsync(`ping -c 1 -W 1 ${ip} 2>/dev/null`, { timeout: 3000 }).catch(() => {})
+          );
+          return Promise.all(promises);
+        });
+      }
+    } catch {
+      // Segunda ronda es best-effort, no falla el scan
     }
   } catch (err) {
     logger.warn('Error durante ping sweep', { error: (err as Error).message });
@@ -133,9 +164,20 @@ export async function runDiscovery(triggeredBy: 'manual' | 'scheduled' = 'schedu
     // Paso 1: Poblar tabla ARP con ping sweep (asíncrono)
     await populateArpTable(subnet);
 
-    // Paso 2: Leer tabla ARP
-    const arpEntries = getArpTable();
-    logger.info(`Se encontraron ${arpEntries.length} entradas ARP`);
+    // Paso 2: Leer tabla ARP (dos lecturas con delay para atrapar respuestas tardías)
+    const arpEntries1 = getArpTable();
+    logger.info(`Primera lectura ARP: ${arpEntries1.length} entradas`);
+
+    // Esperar 2s para que las respuestas tardías se registren en la tabla ARP
+    await new Promise((r) => setTimeout(r, 2000));
+    const arpEntries2 = getArpTable();
+
+    // Merge: combinar ambas lecturas (por MAC para evitar duplicados)
+    const seenMacsMap = new Map<string, ArpEntry>();
+    for (const e of arpEntries1) seenMacsMap.set(e.mac, e);
+    for (const e of arpEntries2) seenMacsMap.set(e.mac, e);
+    const arpEntries = Array.from(seenMacsMap.values());
+    logger.info(`Se encontraron ${arpEntries.length} entradas ARP (después de merge)`);
 
     let newDeviceCount = 0;
     const allDevices: Device[] = [];

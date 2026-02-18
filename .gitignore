@@ -36,6 +36,9 @@ packages/dashboard/dist/
 packages/agent/dist/
 packages/shared/dist/
 
+# Releases
+releases/
+
 # Temp
 tmp/
 temp/

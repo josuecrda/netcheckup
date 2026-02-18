@@ -94,10 +94,16 @@ function deepMerge(target: Record<string, unknown>, source: Record<string, unkno
 export function loadConfig(): AppConfig {
   if (config) return config;
 
-  // Cargar defaults
-  const defaultPath = path.resolve(__dirname, '..', 'config.default.yaml');
+  // Cargar defaults — buscar en el directorio del ejecutable y en ../
+  let defaultPath = path.resolve(__dirname, 'config.default.yaml');
   if (!fs.existsSync(defaultPath)) {
-    throw new Error(`No se encontró config.default.yaml en ${defaultPath}`);
+    defaultPath = path.resolve(__dirname, '..', 'config.default.yaml');
+  }
+  if (!fs.existsSync(defaultPath)) {
+    defaultPath = path.resolve(process.cwd(), 'config.default.yaml');
+  }
+  if (!fs.existsSync(defaultPath)) {
+    throw new Error(`No se encontró config.default.yaml`);
   }
   const defaultConfig = yaml.load(fs.readFileSync(defaultPath, 'utf-8')) as Record<string, unknown>;
 

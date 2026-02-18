@@ -63,6 +63,15 @@ export const scanRepo = {
     return this.findById(id);
   },
 
+  countSince(since: string, type?: ScanType): number {
+    const sql = type
+      ? 'SELECT COUNT(*) as cnt FROM scans WHERE started_at >= ? AND type = ? AND status = \'completed\''
+      : 'SELECT COUNT(*) as cnt FROM scans WHERE started_at >= ? AND status = \'completed\'';
+    const params = type ? [since, type] : [since];
+    const rows = queryRows(sql, params);
+    return (rows[0]?.cnt as number) ?? 0;
+  },
+
   fail(id: string, errorMessage: string): Scan | null {
     const db = getDb();
     const now = new Date().toISOString();
