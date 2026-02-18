@@ -1,0 +1,26 @@
+{
+  "name": "netcheckup",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Herramienta de diagnóstico y monitoreo de red para PyMEs",
+  "workspaces": [
+    "packages/shared",
+    "packages/agent",
+    "packages/dashboard"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=packages/agent",
+    "dev:dashboard": "npm run dev --workspace=packages/dashboard",
+    "build": "npm run build --workspace=packages/shared && npm run build --workspace=packages/dashboard && npm run build --workspace=packages/agent",
+    "build:agent": "npm run build --workspace=packages/agent",
+    "build:dashboard": "npm run build --workspace=packages/dashboard",
+    "build:shared": "npm run build --workspace=packages/shared",
+    "lint": "eslint packages/*/src/**/*.{ts,tsx}",
+    "format": "prettier --write packages/*/src/**/*.{ts,tsx}"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "author": "Josue (Optima Energia)",
+  "license": "UNLICENSED"
+}

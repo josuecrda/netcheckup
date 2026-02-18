@@ -1,0 +1,63 @@
+# NetCheckup Configuration
+# Copia este archivo como config.yaml y modifica según tus necesidades
+
+app:
+  port: 7890
+  language: es
+
+company:
+  name: "Mi Empresa"
+
+network:
+  # Intervalo entre escaneos de descubrimiento de dispositivos (minutos)
+  scanInterval: 30
+  # Intervalo entre pings a dispositivos monitoreados (segundos)
+  pingInterval: 60
+  # Intervalo entre speed tests automáticos (minutos, 0 = solo manual)
+  speedTestInterval: 360
+  # Rango de IP personalizado (vacío = detectar automáticamente)
+  ipRange: ""
+
+isp:
+  name: ""
+  contractedDownloadMbps: 0
+  contractedUploadMbps: 0
+
+alerts:
+  enabled: true
+  cooldownMinutes: 30
+
+  email:
+    enabled: false
+    to: ""
+    smtp:
+      host: ""
+      port: 587
+      user: ""
+      pass: ""
+
+  telegram:
+    enabled: false
+    botToken: ""
+    chatId: ""
+
+thresholds:
+  highLatencyMs: 100
+  packetLossPercent: 5
+  speedDegradedPercent: 50
+
+reports:
+  weekly:
+    enabled: false
+    day: 1
+  monthly:
+    enabled: false
+
+database:
+  path: "./data/netcheckup.db"
+
+logging:
+  level: info
+  file: "./logs/netcheckup.log"
+  maxSize: "10m"
+  maxFiles: 5
