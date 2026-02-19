@@ -36,10 +36,11 @@ export default function SpeedHistoryChart({ data }: { data: SpeedTestResult[] })
           <YAxis stroke="#64748b" fontSize={11} tickFormatter={(v) => `${v}`} />
           <Tooltip
             contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 8, fontSize: 12 }}
+            cursor={false}
           />
           <Legend wrapperStyle={{ fontSize: 12 }} />
-          <Bar dataKey="download" name="Descarga (Mbps)" fill="#10b981" radius={[4, 4, 0, 0]} />
-          <Bar dataKey="upload" name="Subida (Mbps)" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="download" name="Descarga (Mbps)" fill="#10b981" radius={[4, 4, 0, 0]} activeBar={{ fill: '#34d399', stroke: '#10b981', strokeWidth: 1 }} />
+          <Bar dataKey="upload" name="Subida (Mbps)" fill="#3b82f6" radius={[4, 4, 0, 0]} activeBar={{ fill: '#60a5fa', stroke: '#3b82f6', strokeWidth: 1 }} />
         </BarChart>
       </ResponsiveContainer>
     </div>

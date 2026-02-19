@@ -1,12 +1,17 @@
-import { ArrowDown, ArrowUp, Timer, Play } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { ArrowDown, ArrowUp, Timer, Play, Gauge, Clock } from 'lucide-react';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
+import Badge from '../components/common/Badge';
 import Spinner from '../components/common/Spinner';
 import SpeedGauge from '../components/dashboard/SpeedGauge';
 import SpeedHistoryChart from '../components/charts/SpeedHistoryChart';
 import { useSpeedTests, useLatestSpeedTest, useSpeedTestAverage, useRunSpeedTest } from '../hooks/useSpeedTest';
 import { useSpeedTestLive } from '../hooks/useSpeedTestLive';
-import { format } from 'date-fns';
+import { useSettings } from '../hooks/useSettings';
+import { useToast } from '../components/common/Toast';
+import { format, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 const phaseLabels = {
@@ -18,18 +23,72 @@ const phaseLabels = {
 };
 
 export default function SpeedTestPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { data: tests, isLoading } = useSpeedTests(20);
   const { data: latest } = useLatestSpeedTest();
   const { data: avg } = useSpeedTestAverage('7d');
+  const { data: settings } = useSettings();
   const runTest = useRunSpeedTest();
   const live = useSpeedTestLive();
+  const { addToast, updateToast } = useToast();
+  const autorunDone = useRef(false);
+  const toastIdRef = useRef<string | null>(null);
+
+  // Autorun support: if ?autorun=true, trigger speed test on mount
+  useEffect(() => {
+    if (searchParams.get('autorun') === 'true' && !autorunDone.current && !runTest.isPending) {
+      autorunDone.current = true;
+      setSearchParams({}, { replace: true });
+      runTest.mutate();
+    }
+  }, [searchParams, runTest, setSearchParams]);
+
+  // Toast feedback for speed test lifecycle
+  const prevPhase = useRef(live.phase);
+  useEffect(() => {
+    if (prevPhase.current !== live.phase) {
+      if (live.phase === 'ping' && prevPhase.current === 'idle') {
+        toastIdRef.current = addToast({ message: 'Speed test iniciado...', type: 'loading' });
+      } else if (live.phase === 'done' && toastIdRef.current) {
+        updateToast(toastIdRef.current, { message: 'Speed test completado', type: 'success' });
+        toastIdRef.current = null;
+      }
+      prevPhase.current = live.phase;
+    }
+  }, [live.phase, addToast, updateToast]);
 
   if (isLoading) return <Spinner />;
 
   const showGauge = live.isRunning || live.phase === 'done';
+  const ispName = settings?.ispName;
+  const contractedDown = settings?.contractedDownloadMbps;
 
   return (
     <div className="space-y-6">
+      {/* Page header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <Gauge className="w-5 h-5 text-accent" />
+          <h2 className="text-lg font-semibold">Speed Test</h2>
+          {ispName && (
+            <Badge variant="info">{ispName}</Badge>
+          )}
+          {contractedDown && (
+            <span className="text-xs text-gray-500">
+              {contractedDown} Mbps contratados
+            </span>
+          )}
+        </div>
+        {latest && !live.isRunning && (
+          <div className="flex items-center gap-1.5 text-xs text-gray-500">
+            <Clock className="w-3 h-3" />
+            <span>
+              {formatDistanceToNow(new Date(latest.timestamp), { addSuffix: true, locale: es })}
+            </span>
+          </div>
+        )}
+      </div>
+
       {/* Live test section */}
       <Card>
         <div className="flex flex-col items-center">
