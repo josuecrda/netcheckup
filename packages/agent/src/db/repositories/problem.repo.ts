@@ -132,6 +132,16 @@ export const problemRepo = {
     saveDatabase();
   },
 
+  /** Find a recently resolved problem by ruleId within a cooldown window */
+  findRecentlyResolvedByRuleId(ruleId: string, withinMinutes: number): Problem | null {
+    const since = new Date(Date.now() - withinMinutes * 60 * 1000).toISOString();
+    const rows = queryRows(
+      'SELECT * FROM problems WHERE rule_id = ? AND is_active = 0 AND resolved_at >= ? ORDER BY resolved_at DESC LIMIT 1',
+      [ruleId, since]
+    );
+    return rows.length > 0 ? rowToProblem(rows[0]) : null;
+  },
+
   countBySeverity(): { critical: number; warning: number; info: number } {
     const rows = queryRows(
       `SELECT severity, COUNT(*) as count FROM problems WHERE is_active = 1 GROUP BY severity`

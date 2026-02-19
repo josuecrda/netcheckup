@@ -7,6 +7,8 @@ import { lookupVendor } from '../utils/oui-lookup.js';
 import { classifyDevice } from '../utils/device-classifier.js';
 import { deviceRepo } from '../db/repositories/device.repo.js';
 import { scanRepo } from '../db/repositories/scan.repo.js';
+import { alertRepo } from '../db/repositories/alert.repo.js';
+import { broadcastEvent } from '../api/websocket.js';
 import type { Device } from '@netcheckup/shared';
 
 const execAsync = promisify(exec);
@@ -15,6 +17,33 @@ const reverseLookup = promisify(dns.reverse);
 interface ArpEntry {
   ip: string;
   mac: string;
+}
+
+/**
+ * Filtra IPs que no son dispositivos reales (multicast, broadcast, link-local).
+ */
+function isValidDeviceIp(ip: string): boolean {
+  const parts = ip.split('.').map(Number);
+  if (parts.length !== 4 || parts.some((p) => isNaN(p))) return false;
+
+  const [a, b, , d] = parts;
+
+  // Multicast range: 224.0.0.0 – 239.255.255.255
+  if (a >= 224 && a <= 239) return false;
+
+  // Broadcast: x.x.x.255
+  if (d === 255) return false;
+
+  // Network address: x.x.x.0
+  if (d === 0) return false;
+
+  // Link-local: 169.254.x.x
+  if (a === 169 && b === 254) return false;
+
+  // Loopback: 127.x.x.x
+  if (a === 127) return false;
+
+  return true;
 }
 
 /**
@@ -176,11 +205,29 @@ export async function runDiscovery(triggeredBy: 'manual' | 'scheduled' = 'schedu
     const seenMacsMap = new Map<string, ArpEntry>();
     for (const e of arpEntries1) seenMacsMap.set(e.mac, e);
     for (const e of arpEntries2) seenMacsMap.set(e.mac, e);
-    const arpEntries = Array.from(seenMacsMap.values());
-    logger.info(`Se encontraron ${arpEntries.length} entradas ARP (después de merge)`);
+    const arpEntriesRaw = Array.from(seenMacsMap.values());
+
+    // Filtrar IPs no válidas (multicast, broadcast, link-local, propia IP)
+    const arpEntries = arpEntriesRaw.filter((e) => {
+      if (!isValidDeviceIp(e.ip)) {
+        logger.debug(`Filtrando IP no válida de ARP: ${e.ip} (${e.mac})`);
+        return false;
+      }
+      if (e.ip === localIp) {
+        logger.debug(`Filtrando IP propia: ${e.ip}`);
+        return false;
+      }
+      return true;
+    });
+
+    const filtered = arpEntriesRaw.length - arpEntries.length;
+    logger.info(`Se encontraron ${arpEntriesRaw.length} entradas ARP, ${filtered} filtradas → ${arpEntries.length} dispositivos válidos`);
 
     let newDeviceCount = 0;
     const allDevices: Device[] = [];
+
+    // Count established devices to avoid flooding alerts on first scan
+    const establishedDeviceCount = deviceRepo.findAll().length;
 
     // Paso 3: Procesar cada dispositivo
     for (const entry of arpEntries) {
@@ -208,6 +255,30 @@ export async function runDiscovery(triggeredBy: 'manual' | 'scheduled' = 'schedu
         allDevices.push(device);
         newDeviceCount++;
         logger.info(`Nuevo dispositivo: ${entry.ip} (${vendor || 'desconocido'}) [${deviceType}]`);
+
+        // Create new-device alert (skip on first scan to avoid flood)
+        if (establishedDeviceCount >= 3) {
+          const displayName = device.customName || hostname || vendor || entry.ip;
+
+          alertRepo.create({
+            type: 'new-device',
+            severity: 'info',
+            title: `Nuevo dispositivo detectado: ${displayName}`,
+            message:
+              `Se encontró un nuevo dispositivo en tu red:\n` +
+              `- IP: ${entry.ip}\n` +
+              `- MAC: ${entry.mac}\n` +
+              `- Fabricante: ${vendor || 'Desconocido'}\n` +
+              `- Tipo: ${deviceType}`,
+            deviceId: device.id,
+          });
+
+          broadcastEvent('alert:new', {
+            type: 'new-device',
+            severity: 'info',
+            title: `Nuevo dispositivo: ${displayName}`,
+          });
+        }
       }
     }
 

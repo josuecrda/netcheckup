@@ -60,14 +60,14 @@ async function main() {
   // 6. Escaneo inicial de descubrimiento (en background, no bloquea el servidor)
   logger.info('Ejecutando escaneo inicial de la red en background...');
   runDiscovery('scheduled')
-    .then((result) => {
+    .then(async (result) => {
       logger.info(
         `Escaneo inicial completado: ${result.devicesFound} dispositivos, ${result.newDevices} nuevos`
       );
       // Run initial diagnostics after first scan completes
       try {
         logger.info('Ejecutando diagnóstico inicial...');
-        runDiagnostics();
+        await runDiagnostics();
         calculateHealthScore();
         logger.info('Diagnóstico inicial completado');
       } catch (err) {

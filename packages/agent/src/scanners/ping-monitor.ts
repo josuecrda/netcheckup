@@ -1,17 +1,15 @@
-import ping from 'ping';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import { logger } from '../utils/logger.js';
 import { deviceRepo } from '../db/repositories/device.repo.js';
 import { metricRepo } from '../db/repositories/metric.repo.js';
 import type { Device, Metric } from '@netcheckup/shared';
 
-interface PingResponse {
-  alive: boolean;
-  time: number | string;
-  packetLoss: string;
-}
+const execAsync = promisify(exec);
 
 /**
- * Hace ping a un host y retorna los resultados.
+ * Hace ping a un host usando el comando nativo del sistema.
+ * Parsea la salida para extraer latencia, packet loss y jitter.
  */
 async function pingHost(host: string, count: number = 3): Promise<{
   alive: boolean;
@@ -20,32 +18,45 @@ async function pingHost(host: string, count: number = 3): Promise<{
   jitter: number | null;
 }> {
   try {
-    const responses: number[] = [];
+    const cmd =
+      process.platform === 'win32'
+        ? `ping -n ${count} -w 3000 ${host}`
+        : `ping -c ${count} -W 3 ${host}`;
 
-    for (let i = 0; i < count; i++) {
-      const res: PingResponse = await ping.promise.probe(host, {
-        timeout: 5,
-        min_reply: 1,
-      });
+    const { stdout } = await execAsync(cmd, { timeout: count * 5000 });
 
-      if (res.alive && typeof res.time === 'number') {
-        responses.push(res.time);
-      }
+    // Parse individual round-trip times
+    const times: number[] = [];
+    // Matches "time=2.45 ms" or "time=2.45ms" or "time<1ms"
+    const timeRegex = /time[=<]([\d.]+)\s*ms/gi;
+    let match: RegExpExecArray | null;
+    while ((match = timeRegex.exec(stdout)) !== null) {
+      times.push(parseFloat(match[1]));
     }
 
-    if (responses.length === 0) {
+    // Parse packet loss from summary line
+    let packetLoss = 0;
+    const lossMatch = stdout.match(/([\d.]+)%\s*packet\s*loss/i);
+    if (lossMatch) {
+      packetLoss = parseFloat(lossMatch[1]);
+    } else if (times.length === 0) {
+      packetLoss = 100;
+    } else {
+      packetLoss = ((count - times.length) / count) * 100;
+    }
+
+    if (times.length === 0) {
       return { alive: false, latencyMs: null, packetLoss: 100, jitter: null };
     }
 
-    const avgLatency = responses.reduce((a, b) => a + b, 0) / responses.length;
-    const packetLoss = ((count - responses.length) / count) * 100;
+    const avgLatency = times.reduce((a, b) => a + b, 0) / times.length;
 
-    // Calcular jitter (variación promedio entre mediciones consecutivas)
+    // Calculate jitter (average variation between consecutive measurements)
     let jitter: number | null = null;
-    if (responses.length >= 2) {
+    if (times.length >= 2) {
       const diffs: number[] = [];
-      for (let i = 1; i < responses.length; i++) {
-        diffs.push(Math.abs(responses[i] - responses[i - 1]));
+      for (let i = 1; i < times.length; i++) {
+        diffs.push(Math.abs(times[i] - times[i - 1]));
       }
       jitter = diffs.reduce((a, b) => a + b, 0) / diffs.length;
     }
@@ -57,7 +68,40 @@ async function pingHost(host: string, count: number = 3): Promise<{
       jitter: jitter !== null ? Math.round(jitter * 100) / 100 : null,
     };
   } catch (err) {
-    logger.debug(`Error haciendo ping a ${host}`, { error: (err as Error).message });
+    // ping command exits with non-zero code when host is unreachable
+    // Check if stdout has partial results (some packets received)
+    const error = err as { stdout?: string; message: string };
+    if (error.stdout) {
+      const times: number[] = [];
+      const timeRegex = /time[=<]([\d.]+)\s*ms/gi;
+      let match: RegExpExecArray | null;
+      while ((match = timeRegex.exec(error.stdout)) !== null) {
+        times.push(parseFloat(match[1]));
+      }
+
+      if (times.length > 0) {
+        const avgLatency = times.reduce((a, b) => a + b, 0) / times.length;
+        const packetLoss = ((count - times.length) / count) * 100;
+
+        let jitter: number | null = null;
+        if (times.length >= 2) {
+          const diffs: number[] = [];
+          for (let i = 1; i < times.length; i++) {
+            diffs.push(Math.abs(times[i] - times[i - 1]));
+          }
+          jitter = diffs.reduce((a, b) => a + b, 0) / diffs.length;
+        }
+
+        return {
+          alive: true,
+          latencyMs: Math.round(avgLatency * 100) / 100,
+          packetLoss: Math.round(packetLoss * 100) / 100,
+          jitter: jitter !== null ? Math.round(jitter * 100) / 100 : null,
+        };
+      }
+    }
+
+    logger.debug(`Error haciendo ping a ${host}`, { error: error.message });
     return { alive: false, latencyMs: null, packetLoss: 100, jitter: null };
   }
 }

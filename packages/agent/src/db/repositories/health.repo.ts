@@ -44,7 +44,13 @@ export const healthRepo = {
   },
 
   getHistory(period: string = '7d'): (HealthScore & { id: string })[] {
-    const hours = period === '30d' ? 720 : 168;
+    let hours: number;
+    switch (period) {
+      case '24h': hours = 24; break;
+      case '7d':  hours = 168; break;
+      case '30d': hours = 720; break;
+      default:    hours = 168; break;
+    }
     const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
 
     return queryRows(

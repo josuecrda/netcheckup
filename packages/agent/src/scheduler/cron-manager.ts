@@ -74,9 +74,9 @@ export function startScheduler(): void {
   }
 
   // ─── Motor de diagnóstico + Health Score (cada 5 minutos) ───
-  const diagTask = cron.schedule('*/5 * * * *', () => {
+  const diagTask = cron.schedule('*/5 * * * *', async () => {
     try {
-      runDiagnostics();
+      await runDiagnostics();
       calculateHealthScore();
     } catch (err) {
       logger.error('Error en diagnóstico programado', { error: (err as Error).message });

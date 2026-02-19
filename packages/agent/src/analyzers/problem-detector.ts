@@ -14,6 +14,7 @@ import { availabilityRules } from './rules/availability-rules.js';
 import { speedRules } from './rules/speed-rules.js';
 import { infrastructureRules } from './rules/infrastructure-rules.js';
 import { securityRules } from './rules/security-rules.js';
+import { dnsRules, measureDnsResolution } from './rules/dns-rules.js';
 
 // ─── Types ────────────────────────────────────────────
 
@@ -30,6 +31,7 @@ export interface DiagnosticContext {
     packetLossPercent: number;
     speedDegradedPercent: number;
   };
+  dnsResolutionMs: number | null;
 }
 
 /** Result from a single rule evaluation */
@@ -61,11 +63,12 @@ const allRules: DiagnosticRule[] = [
   ...speedRules,
   ...infrastructureRules,
   ...securityRules,
+  ...dnsRules,
 ];
 
 // ─── Build diagnostic context ─────────────────────────
 
-function buildContext(): DiagnosticContext {
+async function buildContext(): Promise<DiagnosticContext> {
   const config = getConfig();
   const devices = deviceRepo.findAll();
 
@@ -79,6 +82,9 @@ function buildContext(): DiagnosticContext {
   const latestSpeedTest = speedTestRepo.getLatest();
   const recentSpeedTests = speedTestRepo.findAll(10); // Last 10 tests
 
+  // DNS resolution timing
+  const dnsResolutionMs = await measureDnsResolution();
+
   return {
     devices,
     metricsByDevice,
@@ -91,6 +97,7 @@ function buildContext(): DiagnosticContext {
       packetLossPercent: config.thresholds.packetLossPercent,
       speedDegradedPercent: config.thresholds.speedDegradedPercent,
     },
+    dnsResolutionMs,
   };
 }
 
@@ -100,11 +107,14 @@ function buildContext(): DiagnosticContext {
  * Ejecuta todas las reglas de diagnóstico contra los datos actuales.
  * Crea nuevos problemas, actualiza existentes, y resuelve los que ya no aplican.
  */
-export function runDiagnostics(): Problem[] {
+export async function runDiagnostics(): Promise<Problem[]> {
   logger.info('Ejecutando motor de diagnóstico...');
-  const ctx = buildContext();
+  const config = getConfig();
+  const ctx = await buildContext();
   const detectedRuleIds = new Set<string>();
   const newProblems: Problem[] = [];
+
+  const cooldownMinutes = config.alerts.cooldownMinutes;
 
   for (const rule of allRules) {
     try {
@@ -145,24 +155,31 @@ export function runDiagnostics(): Problem[] {
           });
           newProblems.push(problem);
 
-          // Create alert for new problem
-          alertRepo.create({
-            type: 'problem-detected',
-            severity: r.severity,
-            title: r.title,
-            message: r.description,
-            deviceId: r.affectedDevices.length === 1 ? r.affectedDevices[0] : null,
-            problemId: problem.id,
-          });
+          // Check cooldown: skip alert if this problem was recently resolved
+          const recentlyResolved = problemRepo.findRecentlyResolvedByRuleId(r.ruleId, cooldownMinutes);
 
-          // Broadcast via WebSocket
-          broadcastEvent('alert:new', {
-            type: 'problem-detected',
-            severity: r.severity,
-            title: r.title,
-          });
+          if (!recentlyResolved) {
+            // Create alert for new problem
+            alertRepo.create({
+              type: 'problem-detected',
+              severity: r.severity,
+              title: r.title,
+              message: r.description,
+              deviceId: r.affectedDevices.length === 1 ? r.affectedDevices[0] : null,
+              problemId: problem.id,
+            });
 
-          logger.info(`Nuevo problema detectado: [${r.severity}] ${r.title}`);
+            // Broadcast via WebSocket
+            broadcastEvent('alert:new', {
+              type: 'problem-detected',
+              severity: r.severity,
+              title: r.title,
+            });
+
+            logger.info(`Nuevo problema detectado: [${r.severity}] ${r.title}`);
+          } else {
+            logger.debug(`Alerta suprimida por cooldown (${cooldownMinutes}min): ${r.ruleId}`);
+          }
         }
       }
     } catch (err) {

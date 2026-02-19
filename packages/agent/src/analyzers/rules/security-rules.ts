@@ -90,4 +90,53 @@ export const securityRules: DiagnosticRule[] = [
       };
     },
   },
+
+  // ─── RULE: open-common-ports ──────────────────────────
+  {
+    id: 'open-common-ports',
+    name: 'Puertos riesgosos abiertos',
+    category: 'security',
+    evaluate(ctx: DiagnosticContext) {
+      const RISKY_PORTS: Record<number, string> = {
+        23: 'Telnet (comunicación sin cifrar)',
+        3389: 'RDP (escritorio remoto)',
+        5900: 'VNC (control remoto)',
+        8080: 'HTTP Proxy (sin cifrar)',
+        8443: 'HTTPS alternativo',
+      };
+
+      const results: RuleResult[] = [];
+
+      for (const device of ctx.devices) {
+        if (!device.openPorts || device.openPorts.length === 0) continue;
+
+        const riskyOpen = device.openPorts.filter((p) => p in RISKY_PORTS);
+        if (riskyOpen.length === 0) continue;
+
+        const deviceName = device.customName || device.hostname || device.ipAddress;
+        const portList = riskyOpen.map((p) => `${p} (${RISKY_PORTS[p]})`).join(', ');
+
+        results.push({
+          severity: 'warning',
+          category: 'security',
+          title: `${deviceName} tiene puertos riesgosos abiertos`,
+          description:
+            `El dispositivo "${deviceName}" (${device.ipAddress}) tiene los siguientes puertos ` +
+            `abiertos que podrían representar un riesgo de seguridad: ${portList}.`,
+          affectedDevices: [device.id],
+          impact:
+            'Puertos como Telnet (23), RDP (3389) o VNC (5900) permiten acceso remoto al ' +
+            'dispositivo. Si no están protegidos con contraseña fuerte, alguien podría acceder ' +
+            'sin autorización.',
+          recommendation:
+            'Si no necesitas acceso remoto a este dispositivo, cierra estos puertos en su ' +
+            'configuración. Si los necesitas, asegúrate de tener contraseñas fuertes y, ' +
+            'idealmente, acceso solo desde dentro de tu red local.',
+          ruleId: `open-common-ports:${device.id}`,
+        });
+      }
+
+      return results.length > 0 ? results : null;
+    },
+  },
 ];

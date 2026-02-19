@@ -150,10 +150,13 @@ function scoreToCategory(score: number): HealthCategory {
 // ─── Trend calculation ────────────────────────────────
 
 function calculateTrend(currentScore: number): 'improving' | 'stable' | 'declining' {
-  const previous = healthRepo.getLatest();
-  if (!previous) return 'stable';
+  // Compare against score from ~24 hours ago for meaningful trend
+  const history = healthRepo.getHistory('24h');
+  if (history.length === 0) return 'stable';
 
-  const diff = currentScore - previous.score;
+  // Oldest score in the 24h window (history is ordered ASC)
+  const scoreFrom24hAgo = history[0].score;
+  const diff = currentScore - scoreFrom24hAgo;
   if (diff > 5) return 'improving';
   if (diff < -5) return 'declining';
   return 'stable';
