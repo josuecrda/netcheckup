@@ -194,7 +194,7 @@ export async function runDiscovery(triggeredBy: 'manual' | 'scheduled' = 'schedu
         const hostname = await resolveHostname(entry.ip);
         const vendor = lookupVendor(entry.mac);
         const isGateway = entry.ip === gateway;
-        const deviceType = classifyDevice(vendor, hostname, null, isGateway);
+        const deviceType = classifyDevice(vendor, hostname, null, isGateway, entry.mac);
 
         const device = deviceRepo.create({
           ipAddress: entry.ip,
