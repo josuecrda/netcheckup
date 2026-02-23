@@ -12,8 +12,8 @@ export default function QuickActions() {
   const handleDiscovery = () => {
     const id = addToast({ message: 'Escaneando red...', type: 'loading' });
     discovery.mutate(undefined, {
-      onSuccess: () => updateToast(id, { message: 'Red escaneada correctamente', type: 'success' }),
-      onError: () => updateToast(id, { message: 'Error al escanear la red', type: 'error' }),
+      onSuccess: () => updateToast(id, { message: 'Escaneo de red iniciado', type: 'success' }),
+      onError: (err) => updateToast(id, { message: (err as Error).message || 'Error al escanear la red', type: 'error' }),
     });
   };
 
@@ -21,7 +21,7 @@ export default function QuickActions() {
     const id = addToast({ message: 'Ejecutando ping...', type: 'loading' });
     ping.mutate(undefined, {
       onSuccess: () => updateToast(id, { message: 'Ping completado', type: 'success' }),
-      onError: () => updateToast(id, { message: 'Error en ping', type: 'error' }),
+      onError: (err) => updateToast(id, { message: (err as Error).message || 'Error en ping', type: 'error' }),
     });
   };
 

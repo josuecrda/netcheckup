@@ -191,6 +191,7 @@ export async function runDiscovery(triggeredBy: 'manual' | 'scheduled' = 'schedu
     logger.info(`Red detectada: ${subnet}.0/24, Gateway: ${gateway}, IP local: ${localIp}`);
 
     // Paso 1: Poblar tabla ARP con ping sweep (asíncrono)
+    broadcastEvent('scan:progress', { phase: 'arp-sweep', message: 'Escaneando red local...' });
     await populateArpTable(subnet);
 
     // Paso 2: Leer tabla ARP (dos lecturas con delay para atrapar respuestas tardías)
@@ -223,6 +224,12 @@ export async function runDiscovery(triggeredBy: 'manual' | 'scheduled' = 'schedu
     const filtered = arpEntriesRaw.length - arpEntries.length;
     logger.info(`Se encontraron ${arpEntriesRaw.length} entradas ARP, ${filtered} filtradas → ${arpEntries.length} dispositivos válidos`);
 
+    broadcastEvent('scan:progress', {
+      phase: 'processing',
+      found: arpEntries.length,
+      message: `${arpEntries.length} dispositivos encontrados, identificando...`,
+    });
+
     let newDeviceCount = 0;
     const allDevices: Device[] = [];
 
@@ -230,7 +237,19 @@ export async function runDiscovery(triggeredBy: 'manual' | 'scheduled' = 'schedu
     const establishedDeviceCount = deviceRepo.findAll().length;
 
     // Paso 3: Procesar cada dispositivo
-    for (const entry of arpEntries) {
+    for (let i = 0; i < arpEntries.length; i++) {
+      const entry = arpEntries[i];
+
+      // Broadcast progreso cada 5 dispositivos para no saturar el WS
+      if (i % 5 === 0) {
+        broadcastEvent('scan:progress', {
+          phase: 'resolving',
+          current: i + 1,
+          total: arpEntries.length,
+          message: `Identificando dispositivo ${i + 1} de ${arpEntries.length}...`,
+        });
+      }
+
       const existing = deviceRepo.findByMac(entry.mac);
 
       if (existing) {

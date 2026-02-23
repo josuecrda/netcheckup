@@ -25,6 +25,24 @@ healthRouter.get('/', (_req, res) => {
   }
 });
 
+// POST /api/health/recalculate — Forzar recálculo del Health Score
+healthRouter.post('/recalculate', (_req, res) => {
+  try {
+    const healthScore = calculateHealthScore();
+    res.json({
+      success: true,
+      data: healthScore,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: (err as Error).message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
 // GET /api/health/history — Historial de scores
 healthRouter.get('/history', (req, res) => {
   try {

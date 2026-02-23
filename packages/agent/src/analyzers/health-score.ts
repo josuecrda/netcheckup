@@ -54,15 +54,17 @@ function buildHealthFactors(): HealthFactor[] {
         const devices = deviceRepo.findMonitored();
         if (devices.length === 0) return 100;
 
-        // Calculate average packet loss across all monitored devices
+        // Calculate average packet loss across monitored devices
+        // Only consider reachable metrics — unreachable devices are penalized by availability factor
         let totalPacketLoss = 0;
         let deviceCount = 0;
 
         for (const device of devices) {
           const metrics = metricRepo.findByDevice(device.id, '1h');
-          if (metrics.length === 0) continue;
+          const reachable = metrics.filter((m) => m.isReachable);
+          if (reachable.length === 0) continue; // No reachable metrics — skip, don't penalize
 
-          const avgLoss = metrics.reduce((sum, m) => sum + m.packetLoss, 0) / metrics.length;
+          const avgLoss = reachable.reduce((sum, m) => sum + m.packetLoss, 0) / reachable.length;
           totalPacketLoss += avgLoss;
           deviceCount++;
         }
@@ -113,12 +115,11 @@ function buildHealthFactors(): HealthFactor[] {
       weight: 0.15,
       description: 'Cuántos de tus dispositivos están funcionando',
       calculate(): number {
-        const summary = deviceRepo.getSummary();
-        const monitored = summary.total;
-        if (monitored === 0) return 100;
+        // Only count devices seen in the last 24h — ignore "ghost" devices
+        const summary = deviceRepo.getRecentSummary(24);
+        if (summary.total === 0) return 100;
 
-        const online = summary.online;
-        const onlinePercent = (online / monitored) * 100;
+        const onlinePercent = (summary.online / summary.total) * 100;
         return Math.round(onlinePercent);
       },
     },
@@ -130,9 +131,25 @@ function buildHealthFactors(): HealthFactor[] {
       description: 'Cantidad y severidad de problemas detectados',
       calculate(): number {
         const counts = problemRepo.countBySeverity();
-        // Deducir puntos: critical = -30, warning = -15, info = -5
-        const deduction = counts.critical * 30 + counts.warning * 15 + counts.info * 5;
-        return Math.max(0, 100 - deduction);
+        const totalProblems = counts.critical + counts.warning + counts.info;
+        if (totalProblems === 0) return 100;
+
+        // Normalize against device count — a few problems in a large network is ok
+        const deviceCount = deviceRepo.getRecentSummary(24).total || 1;
+
+        // Weighted severity score: critical=3, warning=1, info=0.3
+        const severityPoints = counts.critical * 3 + counts.warning * 1 + counts.info * 0.3;
+        // Ratio: severity points per device (0 = no problems, higher = worse)
+        const ratio = severityPoints / deviceCount;
+
+        // Map ratio to score: 0 = 100, >= 3 = 0
+        if (ratio <= 0.1) return 100;
+        if (ratio <= 0.3) return 85;
+        if (ratio <= 0.5) return 70;
+        if (ratio <= 1.0) return 55;
+        if (ratio <= 2.0) return 35;
+        if (ratio <= 3.0) return 15;
+        return 0;
       },
     },
   ];

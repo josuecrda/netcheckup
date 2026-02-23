@@ -194,4 +194,14 @@ export const deviceRepo = {
 
     return { total, online, offline, degraded, byType };
   },
+
+  /** Like getSummary but only counts devices seen within the last N hours */
+  getRecentSummary(hours: number): { total: number; online: number; offline: number; degraded: number } {
+    const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+    const total = queryRows('SELECT COUNT(*) as count FROM devices WHERE last_seen >= ?', [since])[0].count as number;
+    const online = queryRows("SELECT COUNT(*) as count FROM devices WHERE status = 'online' AND last_seen >= ?", [since])[0].count as number;
+    const offline = queryRows("SELECT COUNT(*) as count FROM devices WHERE status = 'offline' AND last_seen >= ?", [since])[0].count as number;
+    const degraded = queryRows("SELECT COUNT(*) as count FROM devices WHERE status = 'degraded' AND last_seen >= ?", [since])[0].count as number;
+    return { total, online, offline, degraded };
+  },
 };

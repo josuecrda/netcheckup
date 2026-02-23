@@ -1,28 +1,28 @@
-import { ArrowUp, Timer, Play, ArrowRight, Gauge } from 'lucide-react';
+import { ArrowUp, ArrowDown, Timer, Play, ArrowRight, Gauge } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Card from '../common/Card';
 import { useLatestSpeedTest } from '../../hooks/useSpeedTest';
 
 function MiniGauge({ value, max, color }: { value: number; max: number; color: string }) {
   const pct = Math.min((value / max) * 100, 100);
-  const radius = 28;
+  const radius = 40;
   const circumference = Math.PI * radius;
   const offset = circumference - (pct / 100) * circumference;
 
   return (
-    <svg width="64" height="38" viewBox="0 0 68 40">
+    <svg width="96" height="56" viewBox="0 0 96 56">
       <path
-        d="M 6 36 A 28 28 0 0 1 62 36"
+        d="M 8 52 A 40 40 0 0 1 88 52"
         fill="none"
         stroke="rgba(255,255,255,0.05)"
-        strokeWidth="5"
+        strokeWidth="6"
         strokeLinecap="round"
       />
       <path
-        d="M 6 36 A 28 28 0 0 1 62 36"
+        d="M 8 52 A 40 40 0 0 1 88 52"
         fill="none"
         stroke={color}
-        strokeWidth="5"
+        strokeWidth="6"
         strokeLinecap="round"
         strokeDasharray={`${circumference}`}
         strokeDashoffset={`${offset}`}
@@ -73,7 +73,7 @@ export default function SpeedTestWidget() {
 
   return (
     <Card className="h-full flex flex-col">
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-2">
         <p className="text-sm text-gray-400">Speed Test</p>
         <button
           onClick={() => navigate('/speed-test')}
@@ -83,16 +83,14 @@ export default function SpeedTestWidget() {
         </button>
       </div>
 
-      {/* Main: gauge + speed — flex-1 to center vertically */}
-      <div className="flex-1 flex items-center gap-3">
+      {/* Main: gauge centered with speed */}
+      <div className="flex-1 flex flex-col items-center justify-center py-2">
         <MiniGauge value={data.downloadMbps} max={200} color="#10b981" />
-        <div>
-          <div>
-            <span className="text-2xl font-bold text-emerald-400">{data.downloadMbps.toFixed(0)}</span>
-            <span className="text-xs text-gray-500 ml-1">Mbps</span>
-          </div>
-          <p className="text-[10px] text-gray-600">descarga</p>
+        <div className="text-center -mt-1">
+          <span className="text-3xl font-bold text-emerald-400">{data.downloadMbps.toFixed(0)}</span>
+          <span className="text-sm text-gray-500 ml-1">Mbps</span>
         </div>
+        <p className="text-[11px] text-gray-600 mt-0.5">descarga</p>
       </div>
 
       {/* Upload + Ping + Run button row — always at bottom */}
