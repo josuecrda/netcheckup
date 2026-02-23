@@ -16,6 +16,9 @@ import { healthRouter } from './routes/health.routes.js';
 import { settingsRouter } from './routes/settings.routes.js';
 import { toolsRouter } from './routes/tools.routes.js';
 import { licenseRouter } from './routes/license.routes.js';
+import { reportsRouter } from './routes/reports.routes.js';
+import { networkRouter } from './routes/network.routes.js';
+import { snmpRouter } from './routes/snmp.routes.js';
 import { errorHandler } from './middleware/error-handler.js';
 
 export function createApp() {
@@ -41,6 +44,9 @@ export function createApp() {
   app.use('/api/settings', settingsRouter);
   app.use('/api/tools', toolsRouter);
   app.use('/api/license', licenseRouter);
+  app.use('/api/reports', reportsRouter);
+  app.use('/api/network', networkRouter);
+  app.use('/api/snmp', snmpRouter);
 
   // Servir dashboard (archivos estáticos de Vite build)
   // Buscar en múltiples ubicaciones: bundle flat (dist/dashboard) o monorepo dev

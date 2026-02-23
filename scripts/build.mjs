@@ -6,6 +6,7 @@
  * 2. Build del dashboard (vite)
  * 3. Bundlea el agent con esbuild en un solo archivo
  * 4. Copia assets necesarios al directorio de distribución
+ * 5. Instala dependencias de producción en dist/
  */
 import { execSync } from 'child_process';
 import { build } from 'esbuild';
@@ -31,12 +32,12 @@ function clean() {
 }
 
 async function buildShared() {
-  console.log('\n--- 1/4 Build shared ---');
+  console.log('\n--- 1/5 Build shared ---');
   run('npx tsc -b packages/shared');
 }
 
 async function buildDashboard() {
-  console.log('\n--- 2/4 Build dashboard ---');
+  console.log('\n--- 2/5 Build dashboard ---');
   run('npx vite build', path.join(ROOT, 'packages', 'dashboard'));
 
   // Copiar dashboard dist al paquete final
@@ -47,7 +48,7 @@ async function buildDashboard() {
 }
 
 async function buildAgent() {
-  console.log('\n--- 3/4 Bundle agent con esbuild ---');
+  console.log('\n--- 3/5 Bundle agent con esbuild ---');
 
   await build({
     entryPoints: [path.join(ROOT, 'packages', 'agent', 'src', 'index.ts')],
@@ -81,7 +82,7 @@ const require = _cr(import.meta.url);
 }
 
 function copyAssets() {
-  console.log('\n--- 4/4 Copiando assets ---');
+  console.log('\n--- 4/5 Copiando assets ---');
 
   // Config por defecto
   fs.copyFileSync(
@@ -186,6 +187,12 @@ WantedBy=multi-user.target
   console.log('  Assets copiados');
 }
 
+function installProductionDeps() {
+  console.log('\n--- 5/5 Instalando dependencias de producción ---');
+  run('npm install --production --ignore-scripts', DIST);
+  console.log('  node_modules instalado en dist/');
+}
+
 // ─── Main ──────────────────────────────────────────────────
 async function main() {
   const start = Date.now();
@@ -198,11 +205,12 @@ async function main() {
   await buildDashboard();
   await buildAgent();
   copyAssets();
+  installProductionDeps();
 
   const elapsed = ((Date.now() - start) / 1000).toFixed(1);
   console.log(`\n✓ Build completado en ${elapsed}s`);
   console.log(`  Paquete en: ${DIST}/`);
-  console.log(`  Para probar: cd dist && npm install && npm start`);
+  console.log(`  Para probar: cd dist && npm start`);
 }
 
 main().catch((err) => {

@@ -51,6 +51,8 @@ export function useWebSocket() {
         'speedtest:completed': [['speedtest']],
         'speedtest:started': [['speedtest']],
         'health:updated': [['health'], ['health', 'problems'], ['health', 'history']],
+        'network:changed': [['network', 'status']],
+        'network:restored': [['network', 'status']],
       };
 
       const keys = handlers[event.type];

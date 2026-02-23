@@ -19,6 +19,9 @@
     "build:shared": "npm run build --workspace=packages/shared",
     "dist": "node scripts/build.mjs",
     "dist:package": "node scripts/build.mjs && node scripts/package.mjs",
+    "dist:win": "node scripts/build.mjs && node scripts/package-platform.mjs --platform=win",
+    "dist:macos": "node scripts/build.mjs && node scripts/package-platform.mjs --platform=macos",
+    "dist:all": "node scripts/build.mjs && node scripts/package-platform.mjs --platform=all",
     "lint": "eslint packages/*/src/**/*.{ts,tsx}",
     "format": "prettier --write packages/*/src/**/*.{ts,tsx}"
   },

@@ -78,6 +78,15 @@ export const speedTestRepo = {
     return rowToSpeedTest(rows[0]);
   },
 
+  deleteOlderThan(hours: number): number {
+    const db = getDb();
+    const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+    db.run('DELETE FROM speed_tests WHERE timestamp < ?', [cutoff]);
+    const changes = db.getRowsModified();
+    if (changes > 0) saveDatabase();
+    return changes;
+  },
+
   getAverage(period: string = '7d'): { avgDownload: number; avgUpload: number; avgPing: number; count: number } {
     const hours = period === '30d' ? 720 : 168;
     const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();

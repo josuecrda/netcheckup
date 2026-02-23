@@ -5,6 +5,7 @@ import {
   Gauge,
   Bell,
   Wrench,
+  FileText,
   Settings,
   Activity,
 } from 'lucide-react';
@@ -16,6 +17,7 @@ const links = [
   { to: '/speed-test', icon: Gauge, label: 'Speed Test' },
   { to: '/alerts', icon: Bell, label: 'Alertas' },
   { to: '/tools', icon: Wrench, label: 'Herramientas' },
+  { to: '/reports', icon: FileText, label: 'Reportes' },
   { to: '/settings', icon: Settings, label: 'Configuración' },
 ];
 

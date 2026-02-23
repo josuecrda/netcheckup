@@ -1,6 +1,6 @@
 import { getDb, saveDatabase } from './connection.js';
 
-const CURRENT_SCHEMA_VERSION = 1;
+const CURRENT_SCHEMA_VERSION = 2;
 
 // Schema embebido para que funcione tanto en dev como en bundle
 const SCHEMA_SQL = `
@@ -138,6 +138,32 @@ CREATE TABLE IF NOT EXISTS app_metadata (
 );
 `;
 
+// ─── Migration v2: SNMP interface counters ─────────────────
+const MIGRATION_V2_SQL = `
+CREATE TABLE IF NOT EXISTS snmp_interface_counters (
+  id TEXT PRIMARY KEY,
+  device_id TEXT NOT NULL,
+  if_index INTEGER NOT NULL,
+  if_name TEXT,
+  if_alias TEXT,
+  timestamp TEXT NOT NULL,
+  in_octets INTEGER NOT NULL DEFAULT 0,
+  out_octets INTEGER NOT NULL DEFAULT 0,
+  in_errors INTEGER NOT NULL DEFAULT 0,
+  out_errors INTEGER NOT NULL DEFAULT 0,
+  in_discards INTEGER NOT NULL DEFAULT 0,
+  out_discards INTEGER NOT NULL DEFAULT 0,
+  fcs_errors INTEGER NOT NULL DEFAULT 0,
+  late_collisions INTEGER NOT NULL DEFAULT 0,
+  speed_mbps INTEGER,
+  duplex_status TEXT DEFAULT 'unknown',
+  oper_status TEXT DEFAULT 'unknown',
+  FOREIGN KEY (device_id) REFERENCES devices(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_snmp_ctr_device_ts ON snmp_interface_counters(device_id, timestamp);
+CREATE INDEX IF NOT EXISTS idx_snmp_ctr_device_if ON snmp_interface_counters(device_id, if_index, timestamp);
+`;
+
 /**
  * Ejecuta el schema SQL y aplica migraciones si es necesario.
  */
@@ -145,6 +171,13 @@ export function runMigrations(): void {
   const db = getDb();
 
   db.exec(SCHEMA_SQL);
+
+  // Migraciones incrementales
+  const currentVersion = getSchemaVersion();
+
+  if (currentVersion < 2) {
+    db.exec(MIGRATION_V2_SQL);
+  }
 
   db.run(
     `INSERT OR REPLACE INTO app_metadata (key, value) VALUES ('schema_version', ?)`,

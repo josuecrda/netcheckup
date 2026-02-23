@@ -1,15 +1,17 @@
 import http from 'http';
+import nodeCron from 'node-cron';
 import { logger } from './utils/logger.js';
 import { loadConfig } from './config.js';
 import { getDatabase, closeDatabase } from './db/connection.js';
 import { runMigrations } from './db/migrations.js';
 import { createApp } from './api/server.js';
 import { initWebSocket } from './api/websocket.js';
-import { startScheduler, stopScheduler } from './scheduler/cron-manager.js';
+import { startScheduler, stopScheduler, pauseScheduler } from './scheduler/cron-manager.js';
 import { runDiscovery } from './scanners/network-discovery.js';
 import { runDiagnostics } from './analyzers/problem-detector.js';
 import { calculateHealthScore } from './analyzers/health-score.js';
 import { getNetworkInfo } from './utils/network-utils.js';
+import { initNetworkGuard, checkNetwork } from './utils/network-guard.js';
 import { APP_NAME, APP_VERSION } from '@netcheckup/shared';
 
 async function main() {
@@ -54,31 +56,44 @@ async function main() {
     });
   });
 
-  // 5. Iniciar scheduler
+  // 5. Network guard — verificar si estamos en la red esperada
+  const isCorrectNetwork = initNetworkGuard();
+
+  // 6. Iniciar scheduler
   startScheduler();
 
-  // 6. Escaneo inicial de descubrimiento (en background, no bloquea el servidor)
-  logger.info('Ejecutando escaneo inicial de la red en background...');
-  runDiscovery('scheduled')
-    .then(async (result) => {
-      logger.info(
-        `Escaneo inicial completado: ${result.devicesFound} dispositivos, ${result.newDevices} nuevos`
-      );
-      // Run initial diagnostics after first scan completes
-      try {
-        logger.info('Ejecutando diagnóstico inicial...');
-        await runDiagnostics();
-        calculateHealthScore();
-        logger.info('Diagnóstico inicial completado');
-      } catch (err) {
-        logger.warn('Error en diagnóstico inicial', { error: (err as Error).message });
-      }
-    })
-    .catch((err) => {
-      logger.warn('El escaneo inicial falló (puede necesitar permisos elevados)', {
-        error: (err as Error).message,
+  if (isCorrectNetwork) {
+    // 7. Escaneo inicial de descubrimiento (en background, no bloquea el servidor)
+    logger.info('Ejecutando escaneo inicial de la red en background...');
+    runDiscovery('scheduled')
+      .then(async (result) => {
+        logger.info(
+          `Escaneo inicial completado: ${result.devicesFound} dispositivos, ${result.newDevices} nuevos`
+        );
+        try {
+          logger.info('Ejecutando diagnóstico inicial...');
+          await runDiagnostics();
+          calculateHealthScore();
+          logger.info('Diagnóstico inicial completado');
+        } catch (err) {
+          logger.warn('Error en diagnóstico inicial', { error: (err as Error).message });
+        }
+      })
+      .catch((err) => {
+        logger.warn('El escaneo inicial falló (puede necesitar permisos elevados)', {
+          error: (err as Error).message,
+        });
       });
-    });
+  } else {
+    // Red incorrecta: pausar scheduler inmediatamente (tasks existen pero paradas)
+    pauseScheduler();
+    logger.warn('Red incorrecta detectada. Scheduler pausado hasta confirmación del usuario.');
+  }
+
+  // 8. Chequeo periódico de red cada 60s (corre siempre, independiente del scheduler)
+  nodeCron.schedule('* * * * *', () => {
+    checkNetwork();
+  });
 
   // Manejo de shutdown graceful
   const shutdown = () => {

@@ -42,3 +42,6 @@ releases/
 # Temp
 tmp/
 temp/
+
+# Cache de binarios descargados
+.cache/

@@ -25,3 +25,34 @@ declare module 'oui' {
   function oui(mac: string): string | undefined;
   export default oui;
 }
+
+declare module 'net-snmp' {
+  interface Varbind {
+    oid: string | number[];
+    type: number;
+    value: any;
+  }
+
+  interface SessionOptions {
+    timeout?: number;
+    retries?: number;
+    version?: number;
+    port?: number;
+  }
+
+  interface Session {
+    get(oids: string[], callback: (error: Error | null, varbinds: Varbind[]) => void): void;
+    subtree(
+      oid: string,
+      feedCallback: (varbinds: Varbind[]) => void,
+      doneCallback: (error: Error | null) => void
+    ): void;
+    close(): void;
+  }
+
+  export function createSession(target: string, community: string, options?: SessionOptions): Session;
+  export function isVarbindError(varbind: Varbind): boolean;
+  export const Version1: number;
+  export const Version2c: number;
+  export const Version3: number;
+}

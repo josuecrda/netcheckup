@@ -12,7 +12,7 @@ export const availabilityRules: DiagnosticRule[] = [
     evaluate(ctx: DiagnosticContext) {
       const results: RuleResult[] = [];
 
-      for (const device of ctx.devices) {
+      for (const device of ctx.devices.filter(d => d.isMonitored)) {
         const metrics = ctx.metricsByDevice[device.id];
         if (!metrics || metrics.length < 5) continue;
 
@@ -96,7 +96,7 @@ export const availabilityRules: DiagnosticRule[] = [
       const threshold = ctx.thresholds.packetLossPercent;
       const results: RuleResult[] = [];
 
-      for (const device of ctx.devices) {
+      for (const device of ctx.devices.filter(d => d.isMonitored)) {
         const metrics = ctx.metricsByDevice[device.id];
         if (!metrics || metrics.length === 0) continue;
 

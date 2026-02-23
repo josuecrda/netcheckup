@@ -6,7 +6,7 @@ import { problemRepo } from '../db/repositories/problem.repo.js';
 import { alertRepo } from '../db/repositories/alert.repo.js';
 import { getConfig } from '../config.js';
 import { broadcastEvent } from '../api/websocket.js';
-import type { Device, Metric, SpeedTestResult, Problem, ProblemSeverity, ProblemCategory } from '@netcheckup/shared';
+import type { Device, Metric, SpeedTestResult, Problem, ProblemSeverity, ProblemCategory, PortCounterDelta } from '@netcheckup/shared';
 
 // Import all rule sets
 import { latencyRules } from './rules/latency-rules.js';
@@ -15,6 +15,9 @@ import { speedRules } from './rules/speed-rules.js';
 import { infrastructureRules } from './rules/infrastructure-rules.js';
 import { securityRules } from './rules/security-rules.js';
 import { dnsRules, measureDnsResolution } from './rules/dns-rules.js';
+import { switchPortRules } from './rules/switch-port-rules.js';
+import { canUseSnmp } from '../license.js';
+import { snmpCounterRepo } from '../db/repositories/snmp-counter.repo.js';
 
 // ─── Types ────────────────────────────────────────────
 
@@ -32,6 +35,8 @@ export interface DiagnosticContext {
     speedDegradedPercent: number;
   };
   dnsResolutionMs: number | null;
+  /** Deltas de contadores SNMP por puerto (vacío si SNMP no disponible) */
+  snmpPortDeltas: PortCounterDelta[];
 }
 
 /** Result from a single rule evaluation */
@@ -64,6 +69,7 @@ const allRules: DiagnosticRule[] = [
   ...infrastructureRules,
   ...securityRules,
   ...dnsRules,
+  ...switchPortRules,
 ];
 
 // ─── Build diagnostic context ─────────────────────────
@@ -85,6 +91,16 @@ async function buildContext(): Promise<DiagnosticContext> {
   // DNS resolution timing
   const dnsResolutionMs = await measureDnsResolution();
 
+  // SNMP port deltas (solo si SNMP está habilitado)
+  let snmpPortDeltas: PortCounterDelta[] = [];
+  if (canUseSnmp()) {
+    try {
+      snmpPortDeltas = snmpCounterRepo.getAllDeltas();
+    } catch (err) {
+      logger.debug(`No se pudieron cargar deltas SNMP: ${(err as Error).message}`);
+    }
+  }
+
   return {
     devices,
     metricsByDevice,
@@ -98,6 +114,7 @@ async function buildContext(): Promise<DiagnosticContext> {
       speedDegradedPercent: config.thresholds.speedDegradedPercent,
     },
     dnsResolutionMs,
+    snmpPortDeltas,
   };
 }
 

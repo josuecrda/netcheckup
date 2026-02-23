@@ -128,6 +128,18 @@ export const toolsApi = {
     post<WakeOnLanResult>('/tools/wake-on-lan', { macAddress }),
   subnetCalc: (ip: string, mask: string) =>
     post<SubnetCalcResult>('/tools/subnet-calc', { ip, mask }),
+  snmpQuery: (host: string, community?: string, timeout?: number) =>
+    post<any>('/tools/snmp-query', { host, community, timeout }),
+};
+
+// ─── SNMP Port Health ─────────────────────────────────────
+import type { PortCounterDelta } from '@netcheckup/shared';
+
+export const snmpApi = {
+  portHealth: (deviceId: string) =>
+    get<PortCounterDelta[]>(`/snmp/port-health?deviceId=${deviceId}`),
+  topTalkers: (limit = 10) =>
+    get<PortCounterDelta[]>(`/snmp/top-talkers?limit=${limit}`),
 };
 
 // ─── License ───────────────────────────────────────────────
@@ -151,8 +163,15 @@ export const licenseApi = {
   tiers: () => get<TierInfo[]>('/license/tiers'),
 };
 
+// ─── Network ────────────────────────────────────────────────
+import type { NetworkStatus, AppSettings } from '@netcheckup/shared';
+
+export const networkApi = {
+  status: () => get<NetworkStatus>('/network/status'),
+  accept: () => post<NetworkStatus>('/network/accept'),
+};
+
 // ─── Settings ───────────────────────────────────────────────
-import type { AppSettings } from '@netcheckup/shared';
 
 export const settingsApi = {
   get: () => get<AppSettings>('/settings'),

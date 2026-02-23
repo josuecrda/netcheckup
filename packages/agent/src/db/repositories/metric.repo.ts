@@ -132,4 +132,13 @@ export const metricRepo = {
     saveDatabase();
     return changes;
   },
+
+  deleteOlderThan(hours: number): number {
+    const db = getDb();
+    const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+    db.run('DELETE FROM metrics WHERE timestamp < ?', [cutoff]);
+    const changes = db.getRowsModified();
+    if (changes > 0) saveDatabase();
+    return changes;
+  },
 };

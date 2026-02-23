@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Monitor, Gauge, Bell, Wrench, Settings } from 'lucide-react';
+import { LayoutDashboard, Monitor, Gauge, Bell, FileText, Settings } from 'lucide-react';
 import { useUnreadAlertCount } from '../../hooks/useAlerts';
 
 const links = [
@@ -7,7 +7,7 @@ const links = [
   { to: '/devices', icon: Monitor, label: 'Equipos' },
   { to: '/speed-test', icon: Gauge, label: 'Speed' },
   { to: '/alerts', icon: Bell, label: 'Alertas' },
-  { to: '/tools', icon: Wrench, label: 'Tools' },
+  { to: '/reports', icon: FileText, label: 'Reportes' },
   { to: '/settings', icon: Settings, label: 'Config' },
 ];
 

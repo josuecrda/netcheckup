@@ -59,7 +59,7 @@ export const latencyRules: DiagnosticRule[] = [
       const results: RuleResult[] = [];
       const threshold = ctx.thresholds.highLatencyMs;
 
-      for (const device of ctx.devices) {
+      for (const device of ctx.devices.filter(d => d.isMonitored)) {
         if (device.isGateway) continue; // Handled by gateway rule
         const metrics = ctx.metricsByDevice[device.id];
         if (!metrics || metrics.length === 0) continue;
@@ -102,7 +102,7 @@ export const latencyRules: DiagnosticRule[] = [
     evaluate(ctx: DiagnosticContext) {
       const affectedDevices: string[] = [];
 
-      for (const device of ctx.devices) {
+      for (const device of ctx.devices.filter(d => d.isMonitored)) {
         const metrics = ctx.metricsByDevice[device.id];
         if (!metrics || metrics.length < 3) continue;
 

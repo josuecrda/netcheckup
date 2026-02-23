@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Edit2, Save, Trash2, Shield, Radio, Power, StickyNote, ChevronDown, Check } from 'lucide-react';
+import { X, Edit2, Save, Trash2, Shield, Radio, Power, StickyNote, ChevronDown, Check, Eye } from 'lucide-react';
 import type { Device, DeviceType } from '@netcheckup/shared';
 import Card from '../common/Card';
 import Badge from '../common/Badge';
@@ -120,6 +120,20 @@ export default function DeviceDetail({ device, onClose }: DeviceDetailProps) {
       {
         onSuccess: () => addToast({ message: `Tipo cambiado a ${DEVICE_TYPES.find((t) => t.value === newType)?.label}`, type: 'success' }),
         onError: () => addToast({ message: 'Error al cambiar tipo', type: 'error' }),
+      }
+    );
+  };
+
+  const handleToggleMonitored = () => {
+    updateDevice.mutate(
+      { id: device.id, data: { isMonitored: !device.isMonitored } },
+      {
+        onSuccess: () =>
+          addToast({
+            message: device.isMonitored ? 'Monitoreo desactivado' : 'Monitoreo activado',
+            type: 'success',
+          }),
+        onError: () => addToast({ message: 'Error al cambiar monitoreo', type: 'error' }),
       }
     );
   };
@@ -272,6 +286,31 @@ export default function DeviceDetail({ device, onClose }: DeviceDetailProps) {
             <Badge variant="info">Gateway</Badge>
           </div>
         )}
+
+        {/* ─── Monitoring Toggle ────────────────────────── */}
+        <div className="mt-3 flex items-center justify-between py-2">
+          <div className="flex items-center gap-2">
+            <Eye className="w-4 h-4 text-gray-500" />
+            <div>
+              <p className="text-sm text-gray-300">Monitorear dispositivo</p>
+              <p className="text-xs text-gray-500">Recibir alertas si se desconecta</p>
+            </div>
+          </div>
+          <button
+            role="switch"
+            aria-checked={device.isMonitored}
+            onClick={handleToggleMonitored}
+            className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors ${
+              device.isMonitored ? 'bg-accent' : 'bg-gray-600'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                device.isMonitored ? 'translate-x-5' : 'translate-x-0.5'
+              }`}
+            />
+          </button>
+        </div>
 
         {/* ─── Notes Section ────────────────────────────── */}
         <div className="mt-4 pt-3 border-t border-white/5">

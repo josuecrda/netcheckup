@@ -6,7 +6,9 @@ import { dnsLookup } from '../../scanners/dns-checker.js';
 import { traceroute } from '../../scanners/traceroute.js';
 import { subnetCalc } from '../../scanners/subnet-calc.js';
 import { wakeOnLan } from '../../scanners/wake-on-lan.js';
+import { snmpQuery } from '../../scanners/snmp-scanner.js';
 import type { PingResult } from '@netcheckup/shared';
+import { canUseSnmp } from '../../license.js';
 
 const execAsync = promisify(exec);
 
@@ -168,6 +170,35 @@ toolsRouter.post('/subnet-calc', (req, res): void => {
     }
 
     const result = subnetCalc(ip, mask);
+    res.json({ success: true, data: result, timestamp: new Date().toISOString() });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: (err as Error).message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+// POST /api/tools/snmp-query — SNMP Query (requiere plan Consultoría)
+toolsRouter.post('/snmp-query', async (req, res): Promise<void> => {
+  if (!canUseSnmp()) {
+    res.status(403).json({
+      success: false,
+      error: 'SNMP requiere el plan Consultoría.',
+      timestamp: new Date().toISOString(),
+    });
+    return;
+  }
+
+  try {
+    const { host, community = 'public', timeout = 5000 } = req.body;
+    if (!host) {
+      res.status(400).json({ success: false, error: 'Se requiere el campo "host"' });
+      return;
+    }
+
+    const result = await snmpQuery(host, community, timeout);
     res.json({ success: true, data: result, timestamp: new Date().toISOString() });
   } catch (err) {
     res.status(500).json({

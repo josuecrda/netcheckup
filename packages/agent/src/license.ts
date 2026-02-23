@@ -119,6 +119,34 @@ export function getCurrentLimits(): TierLimits {
 }
 
 /**
+ * Verifica si el tier actual permite reportes PDF.
+ */
+export function canUsePdfReports(): boolean {
+  return getCurrentLimits().pdfReports;
+}
+
+/**
+ * Verifica si el tier actual permite SNMP.
+ */
+export function canUseSnmp(): boolean {
+  return getCurrentLimits().snmpEnabled;
+}
+
+/**
+ * Verifica si el tier actual permite alertas por email.
+ */
+export function canUseEmailAlerts(): boolean {
+  return getCurrentLimits().emailAlerts;
+}
+
+/**
+ * Verifica si el tier actual permite alertas por Telegram.
+ */
+export function canUseTelegramAlerts(): boolean {
+  return getCurrentLimits().telegramAlerts;
+}
+
+/**
  * Verifica si se puede ejecutar un escaneo de descubrimiento
  * en base al límite del tier free (1/día).
  */

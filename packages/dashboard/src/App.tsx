@@ -7,6 +7,7 @@ import SpeedTestPage from './pages/SpeedTestPage';
 import AlertsPage from './pages/AlertsPage';
 import ToolsPage from './pages/ToolsPage';
 import SettingsPage from './pages/SettingsPage';
+import ReportsPage from './pages/ReportsPage';
 import OnboardingPage from './pages/OnboardingPage';
 import { useSettings } from './hooks/useSettings';
 import { ToastProvider } from './components/common/Toast';
@@ -48,6 +49,7 @@ function AppRoutes() {
         <Route path="/speed-test" element={<SpeedTestPage />} />
         <Route path="/alerts" element={<AlertsPage />} />
         <Route path="/tools" element={<ToolsPage />} />
+        <Route path="/reports" element={<ReportsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
     </Routes>

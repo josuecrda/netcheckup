@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Network, Building2, Wifi, Gauge, Radar, CheckCircle2, ArrowRight, ArrowLeft, Loader2 } from 'lucide-react';
 import Button from '../components/common/Button';
@@ -244,6 +244,8 @@ export default function OnboardingPage() {
   const [scanning, setScanning] = useState(false);
   const [scanDone, setScanDone] = useState(false);
   const [devicesFound, setDevicesFound] = useState(0);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Pre-fill with existing settings if available
   useEffect(() => {
@@ -254,6 +256,22 @@ export default function OnboardingPage() {
       if (settings.contractedUploadMbps) setUploadMbps(String(settings.contractedUploadMbps));
     }
   }, [settings]);
+
+  // Cleanup polling/timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
+  const finishScan = (devices: number) => {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
+    setDevicesFound(devices);
+    setScanDone(true);
+    setScanning(false);
+  };
 
   const handleSaveAndScan = async () => {
     // Save settings
@@ -272,16 +290,13 @@ export default function OnboardingPage() {
     try {
       await scansApi.triggerDiscovery();
       // Poll for scan completion
-      const pollInterval = setInterval(async () => {
+      pollRef.current = setInterval(async () => {
         try {
           const scans = await scansApi.latest();
           if (scans && scans.length > 0) {
             const latest = scans[0];
             if (latest.status === 'completed') {
-              clearInterval(pollInterval);
-              setDevicesFound(latest.devicesFound);
-              setScanDone(true);
-              setScanning(false);
+              finishScan(latest.devicesFound);
             }
           }
         } catch {
@@ -289,17 +304,11 @@ export default function OnboardingPage() {
         }
       }, 2000);
 
-      // Safety timeout — after 30s, just finish
-      setTimeout(() => {
-        if (!scanDone) {
-          setScanDone(true);
-          setScanning(false);
-        }
-      }, 30000);
+      // Safety timeout — after 30s, finish anyway
+      timeoutRef.current = setTimeout(() => finishScan(0), 30000);
     } catch {
-      // If scan fails, still mark onboarding as complete
-      setScanDone(true);
-      setScanning(false);
+      // If scan trigger fails, still mark onboarding as complete
+      finishScan(0);
     }
   };
 

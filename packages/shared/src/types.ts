@@ -213,6 +213,7 @@ export interface AppSettings {
   licenseKey: string | null;
   tier: 'free' | 'monitoring' | 'consulting';
   onboardingCompleted: boolean;
+  expectedSubnet: string | null;
 }
 
 // ============================================================
@@ -246,7 +247,9 @@ export type WSEventType =
   | 'alert:new'
   | 'speedtest:started'
   | 'speedtest:completed'
-  | 'health:updated';
+  | 'health:updated'
+  | 'network:changed'
+  | 'network:restored';
 
 export interface WSEvent {
   type: WSEventType;
@@ -345,4 +348,78 @@ export interface SubnetCalcResult {
 export interface WakeOnLanResult {
   success: boolean;
   message: string;
+}
+
+// ============================================================
+// NETWORK STATUS
+// ============================================================
+
+export interface NetworkStatus {
+  expectedSubnet: string | null;
+  currentSubnet: string;
+  isCorrectNetwork: boolean;
+  isPaused: boolean;
+}
+
+// ============================================================
+// SNMP PORT COUNTERS (Diagnóstico de switches)
+// ============================================================
+
+/** Snapshot de contadores SNMP por interfaz */
+export interface SnmpCounterSnapshot {
+  deviceId: string;
+  ifIndex: number;
+  ifName: string;
+  ifAlias: string | null;
+  timestamp: string;
+  inOctets: number;
+  outOctets: number;
+  inErrors: number;
+  outErrors: number;
+  inDiscards: number;
+  outDiscards: number;
+  fcsErrors: number;
+  lateCollisions: number;
+  speedMbps: number;
+  duplexStatus: 'half' | 'full' | 'unknown';
+  operStatus: string;
+}
+
+/** Delta calculado entre 2 snapshots (tasas por segundo) */
+export interface PortCounterDelta {
+  deviceId: string;
+  deviceName: string;
+  ifIndex: number;
+  ifName: string;
+  ifAlias: string | null;
+  speedMbps: number;
+  duplexStatus: string;
+  operStatus: string;
+  deltaSeconds: number;
+  inBitsPerSec: number;
+  outBitsPerSec: number;
+  inErrorsPerSec: number;
+  outErrorsPerSec: number;
+  inDiscardsPerSec: number;
+  outDiscardsPerSec: number;
+  fcsErrorsPerSec: number;
+  lateCollisionsPerSec: number;
+  inUtilizationPercent: number;
+  outUtilizationPercent: number;
+}
+
+/** Resumen de salud de un puerto (para API/UI) */
+export interface PortHealthSummary {
+  switchName: string;
+  switchIp: string;
+  portName: string;
+  portAlias: string | null;
+  speedMbps: number;
+  duplex: string;
+  status: string;
+  avgInMbps: number;
+  avgOutMbps: number;
+  utilizationPercent: number;
+  errorRate: number;
+  issues: string[];
 }
